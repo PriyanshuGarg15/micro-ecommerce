@@ -1,0 +1,108 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+var app = require("../server");
+var http = require("http");
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || "8080");
+app.set("port", port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.on("listening", onListening);
+server.on("error", onExit);
+process.on("uncaughtException", onExit);
+process.on("SIGINT", onExit);
+server.listen(port);
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+function onExit(error) {
+  if (error) {
+    if (error.syscall === "listen") {
+      var bind = typeof port === "string" ? "Pipe " + port : "Port " + port;
+      // handle specific listen errors with friendly messages
+      switch (error.code) {
+        case "EACCES":
+          console.error(bind + " requires elevated privileges");
+          break;
+        case "EADDRINUSE":
+          console.error(bind + " is already in use");
+          break;
+        default:
+          console.error(error);
+      }
+    } else {
+      console.error(error);
+    }
+  }
+
+  // Force close server after 5secs
+  const timebomb = setTimeout(e => {
+    console.warn("Forcing server close !!!", e);
+    process.exit(1);
+  }, 5000);
+
+  const tasks = [];
+  if (server.listening)
+    tasks.push(
+      new Promise((resolve, reject) =>
+        server.close(e => {
+          if (!!e) {
+            console.error(e);
+            reject(e);
+          } else {
+            console.log("Server closed");
+            resolve();
+          }
+        })
+      )
+    );
+
+
+  Promise.all(tasks)
+    .then(() => clearTimeout(timebomb))
+    .then(() => process.exit());
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === "string" ? "pipe " + addr : "port " + addr.port;
+  console.info("Server listening on " + bind);
+}
